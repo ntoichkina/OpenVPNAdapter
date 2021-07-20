@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.8.1
+- **Updated**: compatible with SystemExtensions API (`OpenVPNPacketFlowBridge`, `OpenVPNAdapterImpl`).
+
 ## 0.8.0
 - **Added**: Configuration properties to override tls-cipher and tls-ciphersuites.
 - **Updated**: openvpn3 library to 3.6.1 version, ASIO library to 1.16.1 version.
