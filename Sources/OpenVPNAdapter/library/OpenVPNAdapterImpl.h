@@ -133,7 +133,7 @@ NS_SWIFT_NAME(openVPNAdapter(_:handleEvent:message:));
  @param error If there is an error applying the configuration, upon return contains an error object that describes the problem.
  @return An object describing the configuration which has been evaluated.
  */
-+ (nullable OpenVPNConfigurationEvaluation *)evaluateConfiguration:(OpenVPNConfiguration *)configuration
+- (nullable OpenVPNConfigurationEvaluation *)evaluateConfiguration:(OpenVPNConfiguration *)configuration
                                                              error:(NSError **)error
 NS_SWIFT_NAME(evaluate(configuration:));
 
