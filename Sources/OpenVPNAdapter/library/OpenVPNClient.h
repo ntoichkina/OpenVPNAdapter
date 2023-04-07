@@ -81,7 +81,6 @@ public:
     bool tun_builder_set_proxy_auto_config_url(const std::string& urlString) override;
     bool tun_builder_set_proxy_http(const std::string& host, int port) override;
     bool tun_builder_set_proxy_https(const std::string& host, int port) override;
-    bool tun_builder_set_block_ipv6(bool block_ipv6) override;
     
     int tun_builder_establish() override;
     bool tun_builder_persist() override;

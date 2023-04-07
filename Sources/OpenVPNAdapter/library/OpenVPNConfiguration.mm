@@ -314,16 +314,6 @@ NSString *const OpenVPNTLSCertProfileDefaultValue = @"default";
     _config.protoOverride = std::string([value UTF8String]);
 }
 
-- (OpenVPNIPv6Preference)ipv6 {
-    NSString *currentValue = [NSString stringWithUTF8String:_config.ipv6.c_str()];
-    return [OpenVPNConfiguration getIPv6PreferenceFromValue:currentValue];
-}
-
-- (void)setIpv6:(OpenVPNIPv6Preference)ipv6 {
-    NSString *value = [OpenVPNConfiguration getValueFromIPv6Preference:ipv6];
-    _config.ipv6 = std::string([value UTF8String]);
-}
-
 - (NSInteger)connectionTimeout {
     return _config.connTimeout;
 }
@@ -412,14 +402,6 @@ NSString *const OpenVPNTLSCertProfileDefaultValue = @"default";
 
 - (void)setKeyDirection:(NSInteger)keyDirection {
     _config.defaultKeyDirection = keyDirection;
-}
-
-- (BOOL)forceCiphersuitesAESCBC {
-    return _config.forceAesCbcCiphersuites;
-}
-
-- (void)setForceCiphersuitesAESCBC:(BOOL)forceCiphersuitesAESCBC {
-    _config.forceAesCbcCiphersuites = forceCiphersuitesAESCBC;
 }
 
 - (OpenVPNMinTLSVersion)minTLSVersion {
@@ -534,7 +516,6 @@ NSString *const OpenVPNTLSCertProfileDefaultValue = @"default";
     configuration.platformVersion = [self.platformVersion copyWithZone:zone];
     configuration.server = [self.server copyWithZone:zone];
     configuration.proto = self.proto;
-    configuration.ipv6 = self.ipv6;
     configuration.connectionTimeout = self.connectionTimeout;
     configuration.tunPersist = self.tunPersist;
     configuration.googleDNSFallback = self.googleDNSFallback;
@@ -545,7 +526,6 @@ NSString *const OpenVPNTLSCertProfileDefaultValue = @"default";
     configuration.compressionMode = self.compressionMode;
     configuration.privateKeyPassword = [self.privateKeyPassword copyWithZone:zone];
     configuration.keyDirection = self.keyDirection;
-    configuration.forceCiphersuitesAESCBC = self.forceCiphersuitesAESCBC;
     configuration.minTLSVersion = self.minTLSVersion;
     configuration.tlsCertProfile = self.tlsCertProfile;
     configuration.peerInfo = [self.peerInfo copyWithZone:zone];
@@ -564,7 +544,6 @@ NSString *const OpenVPNTLSCertProfileDefaultValue = @"default";
     [aCoder encodeObject:self.platformVersion forKey:NSStringFromSelector(@selector(platformVersion))];
     [aCoder encodeObject:self.server forKey:NSStringFromSelector(@selector(server))];
     [aCoder encodeInteger:self.proto forKey:NSStringFromSelector(@selector(proto))];
-    [aCoder encodeInteger:self.ipv6 forKey:NSStringFromSelector(@selector(ipv6))];
     [aCoder encodeInteger:self.connectionTimeout forKey:NSStringFromSelector(@selector(connectionTimeout))];
     [aCoder encodeBool:self.tunPersist forKey:NSStringFromSelector(@selector(tunPersist))];
     [aCoder encodeBool:self.googleDNSFallback forKey:NSStringFromSelector(@selector(googleDNSFallback))];
@@ -575,7 +554,6 @@ NSString *const OpenVPNTLSCertProfileDefaultValue = @"default";
     [aCoder encodeInteger:self.compressionMode forKey:NSStringFromSelector(@selector(compressionMode))];
     [aCoder encodeObject:self.privateKeyPassword forKey:NSStringFromSelector(@selector(privateKeyPassword))];
     [aCoder encodeInteger:self.keyDirection forKey:NSStringFromSelector(@selector(keyDirection))];
-    [aCoder encodeBool:self.forceCiphersuitesAESCBC forKey:NSStringFromSelector(@selector(forceCiphersuitesAESCBC))];
     [aCoder encodeInteger:self.minTLSVersion forKey:NSStringFromSelector(@selector(minTLSVersion))];
     [aCoder encodeInteger:self.tlsCertProfile forKey:NSStringFromSelector(@selector(tlsCertProfile))];
     [aCoder encodeObject:self.peerInfo forKey:NSStringFromSelector(@selector(peerInfo))];
@@ -594,7 +572,6 @@ NSString *const OpenVPNTLSCertProfileDefaultValue = @"default";
         self.platformVersion = [aDecoder decodeObjectOfClass:[NSString class] forKey:NSStringFromSelector(@selector(platformVersion))];
         self.server = [aDecoder decodeObjectOfClass:[NSString class] forKey:NSStringFromSelector(@selector(server))];
         self.proto = (OpenVPNTransportProtocol)[aDecoder decodeIntegerForKey:NSStringFromSelector(@selector(proto))];
-        self.ipv6 = (OpenVPNIPv6Preference)[aDecoder decodeIntegerForKey:NSStringFromSelector(@selector(ipv6))];
         self.connectionTimeout = [aDecoder decodeIntegerForKey:NSStringFromSelector(@selector(connectionTimeout))];
         self.tunPersist = [aDecoder decodeBoolForKey:NSStringFromSelector(@selector(tunPersist))];
         self.googleDNSFallback = [aDecoder decodeBoolForKey:NSStringFromSelector(@selector(googleDNSFallback))];
@@ -605,7 +582,6 @@ NSString *const OpenVPNTLSCertProfileDefaultValue = @"default";
         self.compressionMode = (OpenVPNCompressionMode)[aDecoder decodeIntegerForKey:NSStringFromSelector(@selector(compressionMode))];
         self.privateKeyPassword = [aDecoder decodeObjectOfClass:[NSString class] forKey:NSStringFromSelector(@selector(privateKeyPassword))];
         self.keyDirection = [aDecoder decodeIntegerForKey:NSStringFromSelector(@selector(keyDirection))];
-        self.forceCiphersuitesAESCBC = [aDecoder decodeBoolForKey:NSStringFromSelector(@selector(forceCiphersuitesAESCBC))];
         self.minTLSVersion = (OpenVPNMinTLSVersion)[aDecoder decodeIntegerForKey:NSStringFromSelector(@selector(minTLSVersion))];
         self.tlsCertProfile = (OpenVPNTLSCertProfile)[aDecoder decodeIntegerForKey:NSStringFromSelector(@selector(tlsCertProfile))];
         self.peerInfo = [aDecoder decodeObjectOfClass:[NSDictionary class] forKey:NSStringFromSelector(@selector(peerInfo))];

@@ -50,8 +50,8 @@
 
 #pragma mark - OpenVPNClient Lifecycle
 
-+ (nullable OpenVPNConfigurationEvaluation *)evaluateConfiguration:(OpenVPNConfiguration *)configuration error:(NSError **)error {
-    ClientAPI::EvalConfig eval = OpenVPNClient::eval_config_static(configuration.config);
+- (nullable OpenVPNConfigurationEvaluation *)evaluateConfiguration:(OpenVPNConfiguration *)configuration error:(NSError **)error {
+    ClientAPI::EvalConfig eval = self.vpnClient->eval_config(configuration.config);
     
     if (eval.error) {
         if (error) {
@@ -152,11 +152,11 @@
 #pragma mark - OpenVPNClient Information
 
 + (NSString *)copyright {
-    return [NSString stringWithUTF8String:OpenVPNClient::copyright().c_str()];
+    return [NSString stringWithUTF8String:openvpn::ClientAPI::OpenVPNClientHelper::copyright().c_str()];
 }
 
 + (NSString *)platform {
-    return [NSString stringWithUTF8String:OpenVPNClient::platform().c_str()];
+    return [NSString stringWithUTF8String:openvpn::ClientAPI::OpenVPNClientHelper::platform().c_str()];
 }
 
 - (OpenVPNConnectionInfo *)connectionInformation {
