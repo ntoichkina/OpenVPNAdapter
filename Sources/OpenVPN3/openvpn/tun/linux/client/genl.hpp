@@ -4,8 +4,8 @@
 //               packet encryption, packet authentication, and
 //               packet compression.
 //
-//    Copyright (C) 2012-2020 OpenVPN Inc.
-//    Copyright (C) 2020-2020 Lev Stipakov <lev@openvpn.net>
+//    Copyright (C) 2012-2022 OpenVPN Inc.
+//    Copyright (C) 2020-2022 Lev Stipakov <lev@openvpn.net>
 //
 //    This program is free software: you can redistribute it and/or modify
 //    it under the terms of the GNU Affero General Public License Version 3
@@ -633,6 +633,14 @@ private:
 
     nla_parse(attrs, OVPN_ATTR_MAX, genlmsg_attrdata(gnlh, 0),
               genlmsg_attrlen(gnlh, 0), NULL);
+
+    if (!attrs[OVPN_ATTR_IFINDEX]) {
+      OPENVPN_LOG("missing OVPN_ATTR_IFINDEX attribute in message");
+      return NL_SKIP;
+    }
+
+    if (self->ifindex != nla_get_u32(attrs[OVPN_ATTR_IFINDEX]))
+      return NL_SKIP;
 
     switch (gnlh->cmd) {
     case OVPN_CMD_PACKET:

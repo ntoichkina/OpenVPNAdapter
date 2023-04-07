@@ -4,7 +4,7 @@
 //               packet encryption, packet authentication, and
 //               packet compression.
 //
-//    Copyright (C) 2012-2020 OpenVPN Inc.
+//    Copyright (C) 2012-2022 OpenVPN Inc.
 //
 //    This program is free software: you can redistribute it and/or modify
 //    it under the terms of the GNU Affero General Public License Version 3
@@ -639,7 +639,7 @@ static void start_thread(Client& client)
 {
   // Set Windows title bar
   const std::string title_text = "F2:Stats F3:Reconnect F4:Stop F5:Pause";
-  Win::Console::Title title(ClientAPI::OpenVPNClient::platform() + "     " + title_text);
+  Win::Console::Title title(ClientAPI::OpenVPNClientHelper::platform() + "     " + title_text);
   Win::Console::Input console;
 
   // start connect thread

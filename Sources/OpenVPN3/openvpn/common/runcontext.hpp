@@ -4,7 +4,7 @@
 //               packet encryption, packet authentication, and
 //               packet compression.
 //
-//    Copyright (C) 2012-2020 OpenVPN Inc.
+//    Copyright (C) 2012-2022 OpenVPN Inc.
 //
 //    This program is free software: you can redistribute it and/or modify
 //    it under the terms of the GNU Affero General Public License Version 3
@@ -24,7 +24,7 @@
 // To stress test this code, in client after serv->start() add:
 //   if (unit == 3 || unit == 5)
 //     throw Exception("HIT IT");
-// And after "case PThreadBarrier::ERROR:"
+// And after "case PThreadBarrier::ERROR_SIGNAL:"
 //   if (unit & 1)
 //     break;
 
