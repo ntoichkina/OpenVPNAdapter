@@ -1,4 +1,4 @@
-#line 1 "main_test.function"
+#line 2 "main_test.function"
 SUITE_PRE_DEP
 #define TEST_SUITE_ACTIVE
 
@@ -111,6 +111,7 @@ DISPATCH_FUNCTION
         fflush( stdout );
         ret = DISPATCH_TEST_FN_NOT_FOUND;
     }
+
 #else
     ret = DISPATCH_UNSUPPORTED_SUITE;
 #endif
@@ -226,7 +227,7 @@ int parse_arguments( char *buf, size_t len, char *params[50] )
     return( cnt );
 }
 
-static int test_snprintf( size_t n, const char ref_buf[10], int ref_ret )
+static int test_snprintf( size_t n, const char *ref_buf, int ref_ret )
 {
     int ret;
     char buf[10] = "xxxxxxxxx";
@@ -262,14 +263,15 @@ int main(int argc, const char *argv[])
     const char *default_filename = "TESTCASE_FILENAME";
     const char *test_filename = NULL;
     const char **test_files = NULL;
-    int testfile_count = 0;
+    size_t testfile_count = 0;
     int option_verbose = 0;
 
     /* Other Local variables */
     int arg_index = 1;
     const char *next_arg;
-    int testfile_index, ret, i, cnt;
-    int total_errors = 0, total_tests = 0, total_skipped = 0;
+    size_t testfile_index, i, cnt;
+    int ret;
+    unsigned total_errors = 0, total_tests = 0, total_skipped = 0;
     FILE *file;
     char buf[5000];
     char *params[50];
@@ -282,6 +284,10 @@ int main(int argc, const char *argv[])
     !defined(TEST_SUITE_MEMORY_BUFFER_ALLOC)
     unsigned char alloc_buf[1000000];
     mbedtls_memory_buffer_alloc_init( alloc_buf, sizeof(alloc_buf) );
+#endif
+
+#if defined(MBEDTLS_TEST_MUTEX_USAGE)
+    mbedtls_test_mutex_usage_init( );
 #endif
 
     /*
@@ -347,8 +353,9 @@ int main(int argc, const char *argv[])
           testfile_index < testfile_count;
           testfile_index++ )
     {
-        int unmet_dep_count = 0;
-        char *unmet_dependencies[20];
+        size_t unmet_dep_count = 0;
+        char *unmet_dependencies[20]; /* only filled when verbose != 0 */
+        int missing_unmet_dependencies = 0;
 
         test_filename = test_files[ testfile_index ];
 
@@ -369,6 +376,8 @@ int main(int argc, const char *argv[])
                 mbedtls_exit( MBEDTLS_EXIT_FAILURE );
             }
             unmet_dep_count = 0;
+            memset( unmet_dependencies, 0, sizeof( unmet_dependencies ) );
+            missing_unmet_dependencies = 0;
 
             if( ( ret = get_line( file, buf, sizeof(buf) ) ) != 0 )
                 break;
@@ -391,20 +400,26 @@ int main(int argc, const char *argv[])
                 {
                     if( dep_check( params[i] ) != DEPENDENCY_SUPPORTED )
                     {
-                        if( 0 == option_verbose )
+                        if( unmet_dep_count <
+                            ARRAY_LENGTH( unmet_dependencies ) )
                         {
-                            /* Only one count is needed if not verbose */
+                            if( 0 != option_verbose )
+                            {
+                                unmet_dependencies[unmet_dep_count] =
+                                    strdup( params[i] );
+                                if( unmet_dependencies[unmet_dep_count] == NULL )
+                                {
+                                    mbedtls_fprintf( stderr,
+                                                     "FATAL: Out of memory\n" );
+                                    mbedtls_exit( MBEDTLS_EXIT_FAILURE );
+                                }
+                            }
                             unmet_dep_count++;
-                            break;
                         }
-
-                        unmet_dependencies[ unmet_dep_count ] = strdup(params[i]);
-                        if(  unmet_dependencies[ unmet_dep_count ] == NULL )
+                        else
                         {
-                            mbedtls_fprintf( stderr, "FATAL: Out of memory\n" );
-                            mbedtls_exit( MBEDTLS_EXIT_FAILURE );
+                            missing_unmet_dependencies = 1;
                         }
-                        unmet_dep_count++;
                     }
                 }
 
@@ -424,7 +439,7 @@ int main(int argc, const char *argv[])
                  */
                 if( !option_verbose )
                 {
-                    stdout_fd = redirect_output( &stdout, "/dev/null" );
+                    stdout_fd = redirect_output( stdout, "/dev/null" );
                     if( stdout_fd == -1 )
                     {
                         /* Redirection has failed with no stdout so exit */
@@ -436,13 +451,17 @@ int main(int argc, const char *argv[])
                 ret = dispatch_test( cnt, params );
 
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
-                if( !option_verbose && restore_output( &stdout, stdout_fd ) )
+                if( !option_verbose && restore_output( stdout, stdout_fd ) )
                 {
                         /* Redirection has failed with no stdout so exit */
                         exit( 1 );
                 }
 #endif /* __unix__ || __APPLE__ __MACH__ */
 
+#if defined(MBEDTLS_TEST_MUTEX_USAGE)
+                if( ret == DISPATCH_TEST_SUCCESS )
+                    mbedtls_test_mutex_usage_check( );
+#endif /* MBEDTLS_TEST_MUTEX_USAGE */
             }
 
             if( unmet_dep_count > 0 || ret == DISPATCH_UNSUPPORTED_SUITE )
@@ -464,11 +483,14 @@ int main(int argc, const char *argv[])
                                         unmet_dependencies[i]);
                         free(unmet_dependencies[i]);
                     }
+                    if( missing_unmet_dependencies )
+                        mbedtls_fprintf( stdout, "..." );
                 }
                 mbedtls_fprintf( stdout, "\n" );
                 fflush( stdout );
 
                 unmet_dep_count = 0;
+                missing_unmet_dependencies = 0;
             }
             else if( ret == DISPATCH_TEST_SUCCESS )
             {
@@ -517,7 +539,7 @@ int main(int argc, const char *argv[])
     else
         mbedtls_fprintf( stdout, "FAILED" );
 
-    mbedtls_fprintf( stdout, " (%d / %d tests (%d skipped))\n",
+    mbedtls_fprintf( stdout, " (%u / %u tests (%u skipped))\n",
              total_tests - total_errors, total_tests, total_skipped );
 
 #if defined(MBEDTLS_MEMORY_BUFFER_ALLOC_C) && \
@@ -527,11 +549,6 @@ int main(int argc, const char *argv[])
 #endif
     mbedtls_memory_buffer_alloc_free();
 #endif
-
-#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
-    if( stdout_fd != -1 )
-        close_output( stdout );
-#endif /* __unix__ || __APPLE__ __MACH__ */
 
     return( total_errors != 0 );
 }
