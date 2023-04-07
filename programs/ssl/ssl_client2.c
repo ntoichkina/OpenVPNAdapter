@@ -1,8 +1,14 @@
 /*
  *  SSL client with certificate authentication
  *
- *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
- *  SPDX-License-Identifier: Apache-2.0
+ *  Copyright The Mbed TLS Contributors
+ *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
+ *
+ *  This file is provided under the Apache License 2.0, or the
+ *  GNU General Public License v2.0 or later.
+ *
+ *  **********
+ *  Apache License 2.0:
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -16,7 +22,26 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- *  This file is part of mbed TLS (https://tls.mbed.org)
+ *  **********
+ *
+ *  **********
+ *  GNU General Public License v2.0 or later:
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License along
+ *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ *
+ *  **********
  */
 
 #if !defined(MBEDTLS_CONFIG_FILE)
@@ -35,6 +60,7 @@
 #define mbedtls_printf     printf
 #define mbedtls_fprintf    fprintf
 #define mbedtls_snprintf   snprintf
+#define mbedtls_exit       exit
 #endif
 
 #if !defined(MBEDTLS_ENTROPY_C) || \
@@ -45,7 +71,7 @@ int main( void )
     mbedtls_printf("MBEDTLS_ENTROPY_C and/or "
            "MBEDTLS_SSL_TLS_C and/or MBEDTLS_SSL_CLI_C and/or "
            "MBEDTLS_NET_C and/or MBEDTLS_CTR_DRBG_C and/or not defined.\n");
-    return( 0 );
+    mbedtls_exit( 0 );
 }
 #else
 
@@ -108,6 +134,7 @@ int main( void )
 #define DFL_FALLBACK            -1
 #define DFL_EXTENDED_MS         -1
 #define DFL_ETM                 -1
+#define DFL_SKIP_CLOSE_NOTIFY   0
 
 #define GET_REQUEST "GET %s HTTP/1.0\r\nExtra-header: "
 #define GET_REQUEST_END "\r\n\r\n"
@@ -238,7 +265,9 @@ int main( void )
 #define USAGE_ECJPAKE ""
 #endif
 
-#define USAGE \
+/* USAGE is arbitrarily split to stay under the portable string literal
+ * length limit: 4095 bytes in C99. */
+#define USAGE1 \
     "\n usage: ssl_client2 param=<>...\n"                   \
     "\n acceptable parameters:\n"                           \
     "    server_name=%%s      default: localhost\n"         \
@@ -256,17 +285,20 @@ int main( void )
     "                        options: 1 (non-blocking), 2 (added delays)\n" \
     "    read_timeout=%%d     default: 0 ms (no timeout)\n"    \
     "    max_resend=%%d       default: 0 (no resend on timeout)\n" \
+    "    skip_close_notify=%%d default: 0 (send close_notify)\n" \
     "\n"                                                    \
     USAGE_DTLS                                              \
-    "\n"                                                    \
-    "    auth_mode=%%s        default: (library default: none)\n"      \
+    "\n"
+#define USAGE2 \
+    "    auth_mode=%%s        default: (library default: none)\n" \
     "                        options: none, optional, required\n" \
     USAGE_IO                                                \
     "\n"                                                    \
     USAGE_PSK                                               \
     USAGE_ECJPAKE                                           \
-    "\n"                                                    \
-    "    allow_legacy=%%d     default: (library default: no)\n"      \
+    "\n"
+#define USAGE3 \
+    "    allow_legacy=%%d     default: (library default: no)\n"   \
     USAGE_RENEGO                                            \
     "    exchanges=%%d        default: 1\n"                 \
     "    reconnect=%%d        default: 0 (disabled)\n"      \
@@ -282,7 +314,8 @@ int main( void )
     USAGE_CURVES                                            \
     USAGE_RECSPLIT                                          \
     USAGE_DHMLEN                                            \
-    "\n"                                                    \
+    "\n"
+#define USAGE4 \
     "    arc4=%%d             default: (library default: 0)\n" \
     "    allow_sha1=%%d       default: 0\n"                             \
     "    min_version=%%s      default: (library default: tls1)\n"       \
@@ -344,6 +377,7 @@ struct options
     int fallback;               /* is this a fallback connection?           */
     int extended_ms;            /* negotiate extended master secret?        */
     int etm;                    /* negotiate encrypt then mac?              */
+    int skip_close_notify;      /* skip sending the close_notify alert      */
 } opt;
 
 static void my_debug( void *ctx, int level,
@@ -504,7 +538,10 @@ int main( int argc, char *argv[] )
         if( ret == 0 )
             ret = 1;
 
-        mbedtls_printf( USAGE );
+        mbedtls_printf( USAGE1 );
+        mbedtls_printf( USAGE2 );
+        mbedtls_printf( USAGE3 );
+        mbedtls_printf( USAGE4 );
 
         list = mbedtls_ssl_list_ciphersuites();
         while( *list )
@@ -562,6 +599,7 @@ int main( int argc, char *argv[] )
     opt.fallback            = DFL_FALLBACK;
     opt.extended_ms         = DFL_EXTENDED_MS;
     opt.etm                 = DFL_ETM;
+    opt.skip_close_notify   = DFL_SKIP_CLOSE_NOTIFY;
 
     for( i = 1; i < argc; i++ )
     {
@@ -864,6 +902,12 @@ int main( int argc, char *argv[] )
             if( opt.dhmlen < 0 )
                 goto usage;
         }
+        else if( strcmp( p, "skip_close_notify" ) == 0 )
+        {
+            opt.skip_close_notify = atoi( q );
+            if( opt.skip_close_notify < 0 || opt.skip_close_notify > 1 )
+                goto usage;
+        }
         else
             goto usage;
     }
@@ -1101,8 +1145,8 @@ int main( int argc, char *argv[] )
         mbedtls_printf( "MBEDTLS_CERTS_C not defined." );
 #else
         mbedtls_printf( "All test CRTs loaded via MBEDTLS_CERTS_C are PEM-encoded, but MBEDTLS_PEM_PARSE_C is disabled." );
-    }
 #endif /* MBEDTLS_CERTS_C */
+    }
 #endif /* MBEDTLS_CERTS_C && MBEDTLS_PEM_PARSE_C */
     if( ret < 0 )
     {
@@ -1138,8 +1182,8 @@ int main( int argc, char *argv[] )
         mbedtls_printf( "MBEDTLS_CERTS_C not defined." );
 #else
         mbedtls_printf( "All test CRTs loaded via MBEDTLS_CERTS_C are PEM-encoded, but MBEDTLS_PEM_PARSE_C is disabled." );
-    }
 #endif /* MBEDTLS_CERTS_C */
+    }
 #endif /* MBEDTLS_CERTS_C && MBEDTLS_PEM_PARSE_C */
     if( ret != 0 )
     {
@@ -1165,8 +1209,8 @@ int main( int argc, char *argv[] )
         mbedtls_printf( "MBEDTLS_CERTS_C not defined." );
 #else
         mbedtls_printf( "All test keys loaded via MBEDTLS_CERTS_C are PEM-encoded, but MBEDTLS_PEM_PARSE_C is disabled." );
-    }
 #endif /* MBEDTLS_CERTS_C */
+    }
 #endif /* MBEDTLS_CERTS_C && MBEDTLS_PEM_PARSE_C */
     if( ret != 0 )
     {
@@ -1733,10 +1777,25 @@ close_notify:
     mbedtls_printf( "  . Closing the connection..." );
     fflush( stdout );
 
-    /* No error checking, the connection might be closed already */
-    do ret = mbedtls_ssl_close_notify( &ssl );
-    while( ret == MBEDTLS_ERR_SSL_WANT_WRITE );
-    ret = 0;
+    /*
+     * Most of the time sending a close_notify before closing is the right
+     * thing to do. However, when the server already knows how many messages
+     * are expected and closes the connection by itself, this alert becomes
+     * redundant. Sometimes with DTLS this redundancy becomes a problem by
+     * leading to a race condition where the server might close the connection
+     * before seeing the alert, and since UDP is connection-less when the
+     * alert arrives it will be seen as a new connection, which will fail as
+     * the alert is clearly not a valid ClientHello. This may cause spurious
+     * failures in tests that use DTLS and resumption with ssl_server2 in
+     * ssl-opt.sh, avoided by enabling skip_close_notify client-side.
+     */
+    if( opt.skip_close_notify == 0 )
+    {
+        /* No error checking, the connection might be closed already */
+        do ret = mbedtls_ssl_close_notify( &ssl );
+        while( ret == MBEDTLS_ERR_SSL_WANT_WRITE );
+        ret = 0;
+    }
 
     mbedtls_printf( " done\n" );
 
@@ -1838,7 +1897,7 @@ exit:
     if( ret < 0 )
         ret = 1;
 
-    return( ret );
+    mbedtls_exit( ret );
 }
 #endif /* MBEDTLS_BIGNUM_C && MBEDTLS_ENTROPY_C && MBEDTLS_SSL_TLS_C &&
           MBEDTLS_SSL_CLI_C && MBEDTLS_NET_C && MBEDTLS_RSA_C &&
