@@ -59,7 +59,8 @@ let package = Package(
                 .define("USE_MBEDTLS"),
                 .define("HAVE_LZ4"),
                 .define("OPENVPN_FORCE_TUN_NULL", .when(platforms: [ .iOS ])),
-                .define("USE_TUN_BUILDER", .when(platforms: [ .iOS ]))
+                .define("USE_TUN_BUILDER", .when(platforms: [ .iOS ])),
+                .define("OPENVPN_COMMAND_AGENT", .when(platforms: [ .macOS ]))
             ]
         )
     ],
