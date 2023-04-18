@@ -10,7 +10,7 @@ CLANG_CXX_LIBRARY = libc++
 //
 // iOS-specific settings
 //
-IPHONEOS_DEPLOYMENT_TARGET = 9.0
+IPHONEOS_DEPLOYMENT_TARGET = 11.0
 
 SDKROOT[arch=arm64] = iphoneos
 SDKROOT[arch=armv7] = iphoneos
