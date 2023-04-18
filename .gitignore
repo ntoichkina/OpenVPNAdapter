@@ -25,6 +25,10 @@ _codelite/
 _codelite_lz4/
 bin/
 *.zip
+*.swp
+
+# analyzers
+infer-out
 
 # Mac
 .DS_Store
@@ -33,3 +37,7 @@ bin/
 # Windows / Msys
 nul
 ld.exe*
+
+# test artifacts
+*.lz4
+tmp*
