@@ -449,7 +449,7 @@
     dispatch_semaphore_wait(semaphore, dispatch_time(DISPATCH_TIME_NOW, TUNNEL_CONFIGURATION_TIMEOUT * NSEC_PER_SEC));
     
     if (configurationError) {
-        NSString *message = [NSString stringWithFormat:@"Failed to reset tunnel. Check underlying error for more details. disconnect = %@; configurationError %@", @(disconnect), configurationError];
+        NSString *message = [NSString stringWithFormat:@"Failed to reset tunnel. Check underlying error for more details. disconnect = %@; configurationError %@", @(disconnect), @(configurationError != NULL)];
         NSDictionary *userInfo = @{
             NSLocalizedDescriptionKey: message,
             NSUnderlyingErrorKey: configurationError,
