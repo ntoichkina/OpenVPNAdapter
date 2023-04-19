@@ -141,8 +141,9 @@
         OpenVPNAdapterErrorUnknown;
     
     NSString *message = [NSString stringWithUTF8String:status.message.c_str()];
+    NSString *description = [NSString stringWithFormat:@"Failed to establish connection with OpenVPN server. Message: %@", message];
     NSError *error = [NSError ovpn_errorObjectForAdapterError:adapterError
-                                          description:@"Failed to establish connection with OpenVPN server."
+                                          description:description
                                               message:message
                                                 fatal:YES];
 
