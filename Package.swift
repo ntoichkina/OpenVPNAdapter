@@ -5,7 +5,7 @@ import PackageDescription
 let package = Package(
     name: "OpenVPNAdapter",
     platforms: [
-        .iOS("9.0"),
+        .iOS("11.0"),
         .macOS("10.11"),
     ],
     products: [
@@ -58,8 +58,8 @@ let package = Package(
                 .define("ASIO_HAS_STD_STRING_VIEW"),
                 .define("USE_MBEDTLS"),
                 .define("HAVE_LZ4"),
-//                .define("OPENVPN_FORCE_TUN_NULL"),
-//                .define("USE_TUN_BUILDER")
+                .define("OPENVPN_FORCE_TUN_NULL"),
+                .define("USE_TUN_BUILDER")
             ]
         )
     ],

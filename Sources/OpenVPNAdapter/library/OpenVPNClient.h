@@ -51,7 +51,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)tick;
 
 - (void)resetSettings;
-- (void)resetTun;
+- (void)resetTun:(BOOL)disconnect;
 @end
 
 NS_ASSUME_NONNULL_END

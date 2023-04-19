@@ -33,7 +33,7 @@ ClientAPI::EvalConfig OpenVPNClient::apply_config(const ClientAPI::Config& confi
 
 bool OpenVPNClient::tun_builder_new() {
     [this->delegate resetSettings];
-    [this->delegate resetTun];
+    [this->delegate resetTun:false];
     
     return true;
 }
@@ -149,7 +149,7 @@ bool OpenVPNClient::tun_builder_persist() {
 
 void OpenVPNClient::tun_builder_teardown(bool disconnect) {
     [this->delegate resetSettings];
-    [this->delegate resetTun];
+    [this->delegate resetTun:disconnect];
 }
 
 bool OpenVPNClient::socket_protect(int socket, std::string remote, bool ipv6) {
