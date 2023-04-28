@@ -2,7 +2,7 @@
 
 set -e
 
-OPENVPN3_VERSION="release/3.7.2"
+OPENVPN3_VERSION="master"
 
 git subtree pull --prefix Sources/OpenVPN3 git@github.com:OpenVPN/openvpn3.git ${OPENVPN3_VERSION} --squash
 
