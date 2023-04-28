@@ -100,6 +100,9 @@ sub copy_source_file
   my $is_xsl = 0;
   $is_xsl = 1 if ($from =~ /.xsl$/);
 
+  my $is_quickref = 0;
+  $is_quickref = 1 if ($from =~ /quickref.xml$/);
+
   my $is_test = 0;
   $is_test = 1 if ($from =~ /tests\/unit/);
 
@@ -139,8 +142,8 @@ sub copy_source_file
       $line =~ s/ASIO_/BOOST_ASIO_/g;
     }
 
-    # Extra replacements for quickbook and XSL source only.
-    if ($is_qbk || $is_xsl)
+    # Extra replacements for quickbook, XSL and quickref.xml source only.
+    if ($is_qbk || $is_xsl || $is_quickref)
     {
       $line =~ s/asio\.examples/boost_asio.examples/g;
       $line =~ s/asio\.history/boost_asio.history/g;
@@ -159,6 +162,7 @@ sub copy_source_file
       $line =~ s/\^asio/^boost\/asio/g;
       $line =~ s/namespaceasio/namespaceboost_1_1asio/g;
       $line =~ s/ \(\[\@examples\/diffs.*$//;
+      $line =~ s/boost\/tools\/boostbook/tools\/boostbook/g;
     }
 
     # Conditional replacements.
@@ -288,6 +292,11 @@ sub copy_source_file
       $line =~ s/asio::/boost::asio::/g if !$is_xsl;
       print_line($output, $line, $from, $lineno);
     }
+    elsif ($line =~ /ec\.assign\(0, ec\.category\(\)\)/)
+    {
+      $line =~ s/ec\.assign\(0, ec\.category\(\)\)/ec = boost::system::error_code()/g;
+      print_line($output, $line, $from, $lineno);
+    }
     elsif ($line =~ /^} \/\/ namespace std/ && !$is_coroutine_related && !$is_hash_related)
     {
       print_line($output, "} // namespace system", $from, $lineno);
@@ -363,6 +372,25 @@ sub copy_source_file
       print_line($output, "//", $from, $lineno);
       print_line($output, $line, $from, $lineno);
     }
+    elsif ($is_quickref)
+    {
+      if ($line =~ /asio\.reference\.error_code">/)
+      {
+        # Line is removed.
+      }
+      elsif ($line =~ /asio\.reference\.system_error">/)
+      {
+        # Line is removed.
+      }
+      elsif ($line =~ /asio\.reference\.thread">/)
+      {
+        # Line is removed.
+      }
+      else
+      {
+        print_line($output, $line, $from, $lineno);
+      }
+    }
     else
     {
       print_line($output, $line, $from, $lineno);
@@ -387,6 +415,7 @@ sub copy_include_files
       "include/asio/execution/impl",
       "include/asio/experimental",
       "include/asio/experimental/detail",
+      "include/asio/experimental/detail/impl",
       "include/asio/experimental/impl",
       "include/asio/generic",
       "include/asio/generic/detail",
@@ -565,9 +594,11 @@ sub copy_examples
       "src/examples/cpp11/allocation",
       "src/examples/cpp11/buffers",
       "src/examples/cpp11/chat",
+      "src/examples/cpp11/deferred",
       "src/examples/cpp11/echo",
       "src/examples/cpp11/executors",
       "src/examples/cpp11/fork",
+      "src/examples/cpp11/files",
       "src/examples/cpp11/futures",
       "src/examples/cpp11/handler_tracking",
       "src/examples/cpp11/http/server",
@@ -584,9 +615,13 @@ sub copy_examples
       "src/examples/cpp11/timers",
       "src/examples/cpp14/deferred",
       "src/examples/cpp14/executors",
+      "src/examples/cpp14/iostreams",
       "src/examples/cpp14/operations",
       "src/examples/cpp14/parallel_group",
-      "src/examples/cpp17/coroutines_ts");
+      "src/examples/cpp17/coroutines_ts",
+      "src/examples/cpp20/channels",
+      "src/examples/cpp20/coroutines",
+      "src/examples/cpp20/operations");
 
   our $boost_dir;
   foreach my $dir (@dirs)
@@ -615,10 +650,13 @@ sub copy_doc
       "src/doc/asio.qbk",
       "src/doc/examples.qbk",
       "src/doc/net_ts.qbk",
+      "src/doc/overview.qbk",
+      "src/doc/quickref.xml",
       "src/doc/reference.xsl",
       "src/doc/std_executors.qbk",
       "src/doc/tutorial.xsl",
       glob("src/doc/overview/*.qbk"),
+      glob("src/doc/overview/model/*.qbk"),
       glob("src/doc/requirements/*.qbk"));
   foreach my $file (@files)
   {
