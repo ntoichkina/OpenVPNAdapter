@@ -2,13 +2,7 @@
  *  Certificate request generation
  *
  *  Copyright The Mbed TLS Contributors
- *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
- *
- *  This file is provided under the Apache License 2.0, or the
- *  GNU General Public License v2.0 or later.
- *
- *  **********
- *  Apache License 2.0:
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -21,27 +15,6 @@
  *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
- *
- *  **********
- *
- *  **********
- *  GNU General Public License v2.0 or later:
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
- *  **********
  */
 
 #if !defined(MBEDTLS_CONFIG_FILE)
@@ -50,16 +23,7 @@
 #include MBEDTLS_CONFIG_FILE
 #endif
 
-#if defined(MBEDTLS_PLATFORM_C)
 #include "mbedtls/platform.h"
-#else
-#include <stdio.h>
-#include <stdlib.h>
-#define mbedtls_printf          printf
-#define mbedtls_exit            exit
-#define MBEDTLS_EXIT_SUCCESS    EXIT_SUCCESS
-#define MBEDTLS_EXIT_FAILURE    EXIT_FAILURE
-#endif /* MBEDTLS_PLATFORM_C */
 
 #if !defined(MBEDTLS_X509_CSR_WRITE_C) || !defined(MBEDTLS_FS_IO) ||  \
     !defined(MBEDTLS_PK_PARSE_C) || !defined(MBEDTLS_SHA256_C) || \
@@ -85,6 +49,7 @@ int main( void )
 #include <string.h>
 
 #define DFL_FILENAME            "keyfile.key"
+#define DFL_PASSWORD            NULL
 #define DFL_DEBUG_LEVEL         0
 #define DFL_OUTPUT_FILENAME     "cert.req"
 #define DFL_SUBJECT_NAME        "CN=Cert,O=mbed TLS,C=UK"
@@ -98,6 +63,7 @@ int main( void )
     "\n usage: cert_req param=<>...\n"                  \
     "\n acceptable parameters:\n"                       \
     "    filename=%%s         default: keyfile.key\n"   \
+    "    password=%%s         default: NULL\n"          \
     "    debug_level=%%d      default: 0 (disabled)\n"  \
     "    output_file=%%s      default: cert.req\n"      \
     "    subject_name=%%s     default: CN=Cert,O=mbed TLS,C=UK\n"   \
@@ -129,12 +95,14 @@ int main( void )
     "                          SHA224, SHA256, SHA384, SHA512\n" \
     "\n"
 
+
 /*
  * global options
  */
 struct options
 {
     const char *filename;       /* filename of the key file             */
+    const char *password;       /* password for the key file            */
     int debug_level;            /* level of debugging                   */
     const char *output_file;    /* where to store the constructed key file  */
     const char *subject_name;   /* subject name for certificate request */
@@ -203,6 +171,7 @@ int main( int argc, char *argv[] )
     }
 
     opt.filename            = DFL_FILENAME;
+    opt.password            = DFL_PASSWORD;
     opt.debug_level         = DFL_DEBUG_LEVEL;
     opt.output_file         = DFL_OUTPUT_FILENAME;
     opt.subject_name        = DFL_SUBJECT_NAME;
@@ -222,6 +191,8 @@ int main( int argc, char *argv[] )
 
         if( strcmp( p, "filename" ) == 0 )
             opt.filename = q;
+        else if( strcmp( p, "password" ) == 0 )
+            opt.password = q;
         else if( strcmp( p, "output_file" ) == 0 )
             opt.output_file = q;
         else if( strcmp( p, "debug_level" ) == 0 )
@@ -366,7 +337,7 @@ int main( int argc, char *argv[] )
     mbedtls_printf( "  . Loading the private key ..." );
     fflush( stdout );
 
-    ret = mbedtls_pk_parse_keyfile( &key, opt.filename, NULL );
+    ret = mbedtls_pk_parse_keyfile( &key, opt.filename, opt.password );
 
     if( ret != 0 )
     {
@@ -387,7 +358,7 @@ int main( int argc, char *argv[] )
     if( ( ret = write_certificate_request( &req, opt.output_file,
                                            mbedtls_ctr_drbg_random, &ctr_drbg ) ) != 0 )
     {
-        mbedtls_printf( " failed\n  !  write_certifcate_request %d", ret );
+        mbedtls_printf( " failed\n  !  write_certificate_request %d", ret );
         goto exit;
     }
 

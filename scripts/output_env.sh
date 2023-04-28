@@ -3,13 +3,7 @@
 # output_env.sh
 #
 # Copyright The Mbed TLS Contributors
-# SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
-#
-# This file is provided under the Apache License 2.0, or the
-# GNU General Public License v2.0 or later.
-#
-# **********
-# Apache License 2.0:
+# SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License.
@@ -22,27 +16,6 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
-# **********
-#
-# **********
-# GNU General Public License v2.0 or later:
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-#
-# **********
 #
 # Purpose
 #
@@ -153,7 +126,16 @@ echo
 print_version "python3" "--version" "" "head -n 1"
 echo
 
-print_version "pylint3" "--version" "" "sed /^.*config/d" "grep pylint"
+# Find the installed version of Pylint. Installed as a distro package this can
+# be pylint3 and as a PEP egg, pylint. In test scripts We prefer pylint over
+# pylint3
+if type pylint >/dev/null 2>/dev/null; then
+    print_version "pylint" "--version" "" "sed /^.*config/d" "grep pylint"
+elif type pylint3 >/dev/null 2>/dev/null; then
+    print_version "pylint3" "--version" "" "sed /^.*config/d" "grep pylint"
+else
+    echo " * pylint or pylint3: Not found."
+fi
 echo
 
 : ${OPENSSL:=openssl}
@@ -164,6 +146,13 @@ if [ -n "${OPENSSL_LEGACY+set}" ]; then
     print_version "$OPENSSL_LEGACY" "version" "legacy"
 else
     echo " * openssl (legacy): Not configured."
+fi
+echo
+
+if [ -n "${OPENSSL_NEXT+set}" ]; then
+    print_version "$OPENSSL_NEXT" "version" "next"
+else
+    echo " * openssl (next): Not configured."
 fi
 echo
 

@@ -3,13 +3,7 @@
 # compat.sh
 #
 # Copyright The Mbed TLS Contributors
-# SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
-#
-# This file is provided under the Apache License 2.0, or the
-# GNU General Public License v2.0 or later.
-#
-# **********
-# Apache License 2.0:
+# SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License.
@@ -22,27 +16,6 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
-# **********
-#
-# **********
-# GNU General Public License v2.0 or later:
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-#
-# **********
 #
 # Purpose
 #
@@ -84,6 +57,9 @@ if ( which $GNUTLS_CLI && which $GNUTLS_SERV ) >/dev/null 2>&1; then
             PEER_GNUTLS=""
         else
             PEER_GNUTLS=" GnuTLS"
+            if [ $MINOR -lt 4 ]; then
+                GNUTLS_MINOR_LT_FOUR='x'
+            fi
         fi
     fi
 else
@@ -91,16 +67,20 @@ else
 fi
 
 # default values for options
-MODES="tls1 tls1_1 tls1_2 dtls1 dtls1_2"
+# /!\ keep this synchronised with:
+# - basic-build-test.sh
+# - all.sh (multiple components)
+MODES="tls1 tls1_1 tls12 dtls1 dtls12" # ssl3 not in default config
 VERIFIES="NO YES"
 TYPES="ECDSA RSA PSK"
 FILTER=""
 # exclude:
-# - NULL: excluded from our default config
+# - NULL: excluded from our default config + requires OpenSSL legacy
 # - RC4, single-DES: requires legacy OpenSSL/GnuTLS versions
-#   avoid plain DES but keep 3DES-EDE-CBC (mbedTLS), DES-CBC3 (OpenSSL)
 # - 3DES: not in default config
-EXCLUDE='NULL\|DES\|RC4\|ARCFOUR'
+# - ARIA: not in default config.h + requires OpenSSL >= 1.1.1
+# - ChachaPoly: requires OpenSSL >= 1.1.0
+EXCLUDE='NULL\|DES\|RC4\|ARCFOUR\|ARIA\|CHACHA20-POLY1305'
 VERBOSE=""
 MEMCHECK=0
 PEERS="OpenSSL$PEER_GNUTLS mbedTLS"
@@ -178,7 +158,7 @@ log() {
 # is_dtls <mode>
 is_dtls()
 {
-    test "$1" = "dtls1" -o "$1" = "dtls1_2"
+    test "$1" = "dtls1" -o "$1" = "dtls12"
 }
 
 # minor_ver <mode>
@@ -194,7 +174,7 @@ minor_ver()
         tls1_1|dtls1)
             echo 2
             ;;
-        tls1_2|dtls1_2)
+        tls12|dtls12)
             echo 3
             ;;
         *)
@@ -249,15 +229,6 @@ filter_ciphersuites()
         G_CIPHERS=$( filter "$G_CIPHERS" )
     fi
 
-    # OpenSSL <1.0.2 doesn't support DTLS 1.2. Check what OpenSSL
-    # supports from the s_server help. (The s_client help isn't
-    # accurate as of 1.0.2g: it supports DTLS 1.2 but doesn't list it.
-    # But the s_server help seems to be accurate.)
-    if ! $OPENSSL_CMD s_server -help 2>&1 | grep -q "^ *-$MODE "; then
-        M_CIPHERS=""
-        O_CIPHERS=""
-    fi
-
     # For GnuTLS client -> mbed TLS server,
     # we need to force IPv4 by connecting to 127.0.0.1 but then auth fails
     if [ "X$VERIFY" = "XYES" ] && is_dtls "$MODE"; then
@@ -272,6 +243,9 @@ reset_ciphersuites()
     G_CIPHERS=""
 }
 
+# Ciphersuites that can be used with all peers.
+# Since we currently have three possible peers, each ciphersuite should appear
+# three times: in each peer's list (with the name that this peer uses).
 add_common_ciphersuites()
 {
     case $TYPE in
@@ -468,6 +442,16 @@ add_common_ciphersuites()
     esac
 }
 
+# Ciphersuites usable only with Mbed TLS and OpenSSL
+# Each ciphersuite should appear two times, once with its OpenSSL name, once
+# with its Mbed TLS name.
+#
+# NOTE: for some reason RSA-PSK doesn't work with OpenSSL,
+# so RSA-PSK ciphersuites need to go in other sections, see
+# https://github.com/Mbed-TLS/mbedtls/issues/1419
+#
+# ChachaPoly suites are here rather than in "common", as they were added in
+# GnuTLS in 3.5.0 and the CI only has 3.4.x so far.
 add_openssl_ciphersuites()
 {
     case $TYPE in
@@ -497,12 +481,18 @@ add_openssl_ciphersuites()
                     TLS-ECDH-ECDSA-WITH-AES-256-CBC-SHA384          \
                     TLS-ECDH-ECDSA-WITH-AES-128-GCM-SHA256          \
                     TLS-ECDH-ECDSA-WITH-AES-256-GCM-SHA384          \
+                    TLS-ECDHE-ECDSA-WITH-ARIA-256-GCM-SHA384        \
+                    TLS-ECDHE-ECDSA-WITH-ARIA-128-GCM-SHA256        \
+                    TLS-ECDHE-ECDSA-WITH-CHACHA20-POLY1305-SHA256   \
                     "
                 O_CIPHERS="$O_CIPHERS               \
                     ECDH-ECDSA-AES128-SHA256        \
                     ECDH-ECDSA-AES256-SHA384        \
                     ECDH-ECDSA-AES128-GCM-SHA256    \
                     ECDH-ECDSA-AES256-GCM-SHA384    \
+                    ECDHE-ECDSA-ARIA256-GCM-SHA384  \
+                    ECDHE-ECDSA-ARIA128-GCM-SHA256  \
+                    ECDHE-ECDSA-CHACHA20-POLY1305   \
                     "
             fi
             ;;
@@ -516,13 +506,60 @@ add_openssl_ciphersuites()
                 DES-CBC-SHA                     \
                 EDH-RSA-DES-CBC-SHA             \
                 "
+            if [ `minor_ver "$MODE"` -ge 3 ]
+            then
+                M_CIPHERS="$M_CIPHERS                               \
+                    TLS-ECDHE-RSA-WITH-ARIA-256-GCM-SHA384          \
+                    TLS-DHE-RSA-WITH-ARIA-256-GCM-SHA384            \
+                    TLS-RSA-WITH-ARIA-256-GCM-SHA384                \
+                    TLS-ECDHE-RSA-WITH-ARIA-128-GCM-SHA256          \
+                    TLS-DHE-RSA-WITH-ARIA-128-GCM-SHA256            \
+                    TLS-RSA-WITH-ARIA-128-GCM-SHA256                \
+                    TLS-DHE-RSA-WITH-CHACHA20-POLY1305-SHA256       \
+                    TLS-ECDHE-RSA-WITH-CHACHA20-POLY1305-SHA256     \
+                    "
+                O_CIPHERS="$O_CIPHERS               \
+                    ECDHE-ARIA256-GCM-SHA384        \
+                    DHE-RSA-ARIA256-GCM-SHA384      \
+                    ARIA256-GCM-SHA384              \
+                    ECDHE-ARIA128-GCM-SHA256        \
+                    DHE-RSA-ARIA128-GCM-SHA256      \
+                    ARIA128-GCM-SHA256              \
+                    DHE-RSA-CHACHA20-POLY1305       \
+                    ECDHE-RSA-CHACHA20-POLY1305     \
+                    "
+            fi
             ;;
 
         "PSK")
+            if [ `minor_ver "$MODE"` -ge 3 ]
+            then
+                M_CIPHERS="$M_CIPHERS                               \
+                    TLS-DHE-PSK-WITH-ARIA-256-GCM-SHA384            \
+                    TLS-DHE-PSK-WITH-ARIA-128-GCM-SHA256            \
+                    TLS-PSK-WITH-ARIA-256-GCM-SHA384                \
+                    TLS-PSK-WITH-ARIA-128-GCM-SHA256                \
+                    TLS-PSK-WITH-CHACHA20-POLY1305-SHA256           \
+                    TLS-ECDHE-PSK-WITH-CHACHA20-POLY1305-SHA256     \
+                    TLS-DHE-PSK-WITH-CHACHA20-POLY1305-SHA256       \
+                    "
+                O_CIPHERS="$O_CIPHERS               \
+                    DHE-PSK-ARIA256-GCM-SHA384      \
+                    DHE-PSK-ARIA128-GCM-SHA256      \
+                    PSK-ARIA256-GCM-SHA384          \
+                    PSK-ARIA128-GCM-SHA256          \
+                    DHE-PSK-CHACHA20-POLY1305       \
+                    ECDHE-PSK-CHACHA20-POLY1305     \
+                    PSK-CHACHA20-POLY1305           \
+                    "
+            fi
             ;;
     esac
 }
 
+# Ciphersuites usable only with Mbed TLS and GnuTLS
+# Each ciphersuite should appear two times, once with its GnuTLS name, once
+# with its Mbed TLS name.
 add_gnutls_ciphersuites()
 {
     case $TYPE in
@@ -535,12 +572,20 @@ add_gnutls_ciphersuites()
                     TLS-ECDHE-ECDSA-WITH-CAMELLIA-256-CBC-SHA384    \
                     TLS-ECDHE-ECDSA-WITH-CAMELLIA-128-GCM-SHA256    \
                     TLS-ECDHE-ECDSA-WITH-CAMELLIA-256-GCM-SHA384    \
+                    TLS-ECDHE-ECDSA-WITH-AES-128-CCM                \
+                    TLS-ECDHE-ECDSA-WITH-AES-256-CCM                \
+                    TLS-ECDHE-ECDSA-WITH-AES-128-CCM-8              \
+                    TLS-ECDHE-ECDSA-WITH-AES-256-CCM-8              \
                    "
                 G_CIPHERS="$G_CIPHERS                               \
                     +ECDHE-ECDSA:+CAMELLIA-128-CBC:+SHA256          \
                     +ECDHE-ECDSA:+CAMELLIA-256-CBC:+SHA384          \
                     +ECDHE-ECDSA:+CAMELLIA-128-GCM:+AEAD            \
                     +ECDHE-ECDSA:+CAMELLIA-256-GCM:+AEAD            \
+                    +ECDHE-ECDSA:+AES-128-CCM:+AEAD                 \
+                    +ECDHE-ECDSA:+AES-256-CCM:+AEAD                 \
+                    +ECDHE-ECDSA:+AES-128-CCM-8:+AEAD               \
+                    +ECDHE-ECDSA:+AES-256-CCM-8:+AEAD               \
                    "
             fi
             ;;
@@ -570,6 +615,14 @@ add_gnutls_ciphersuites()
                     TLS-DHE-RSA-WITH-CAMELLIA-256-GCM-SHA384    \
                     TLS-RSA-WITH-CAMELLIA-128-GCM-SHA256        \
                     TLS-RSA-WITH-CAMELLIA-256-GCM-SHA384        \
+                    TLS-RSA-WITH-AES-128-CCM                    \
+                    TLS-RSA-WITH-AES-256-CCM                    \
+                    TLS-DHE-RSA-WITH-AES-128-CCM                \
+                    TLS-DHE-RSA-WITH-AES-256-CCM                \
+                    TLS-RSA-WITH-AES-128-CCM-8                  \
+                    TLS-RSA-WITH-AES-256-CCM-8                  \
+                    TLS-DHE-RSA-WITH-AES-128-CCM-8              \
+                    TLS-DHE-RSA-WITH-AES-256-CCM-8              \
                     "
                 G_CIPHERS="$G_CIPHERS                           \
                     +ECDHE-RSA:+CAMELLIA-128-CBC:+SHA256        \
@@ -584,6 +637,14 @@ add_gnutls_ciphersuites()
                     +DHE-RSA:+CAMELLIA-256-GCM:+AEAD            \
                     +RSA:+CAMELLIA-128-GCM:+AEAD                \
                     +RSA:+CAMELLIA-256-GCM:+AEAD                \
+                    +RSA:+AES-128-CCM:+AEAD                     \
+                    +RSA:+AES-256-CCM:+AEAD                     \
+                    +RSA:+AES-128-CCM-8:+AEAD                   \
+                    +RSA:+AES-256-CCM-8:+AEAD                   \
+                    +DHE-RSA:+AES-128-CCM:+AEAD                 \
+                    +DHE-RSA:+AES-256-CCM:+AEAD                 \
+                    +DHE-RSA:+AES-128-CCM-8:+AEAD               \
+                    +DHE-RSA:+AES-256-CCM-8:+AEAD               \
                     "
             fi
             ;;
@@ -655,6 +716,14 @@ add_gnutls_ciphersuites()
                     TLS-PSK-WITH-AES-256-GCM-SHA384             \
                     TLS-DHE-PSK-WITH-AES-128-GCM-SHA256         \
                     TLS-DHE-PSK-WITH-AES-256-GCM-SHA384         \
+                    TLS-PSK-WITH-AES-128-CCM                    \
+                    TLS-PSK-WITH-AES-256-CCM                    \
+                    TLS-DHE-PSK-WITH-AES-128-CCM                \
+                    TLS-DHE-PSK-WITH-AES-256-CCM                \
+                    TLS-PSK-WITH-AES-128-CCM-8                  \
+                    TLS-PSK-WITH-AES-256-CCM-8                  \
+                    TLS-DHE-PSK-WITH-AES-128-CCM-8              \
+                    TLS-DHE-PSK-WITH-AES-256-CCM-8              \
                     TLS-RSA-PSK-WITH-CAMELLIA-128-GCM-SHA256    \
                     TLS-RSA-PSK-WITH-CAMELLIA-256-GCM-SHA384    \
                     TLS-PSK-WITH-CAMELLIA-128-GCM-SHA256        \
@@ -685,6 +754,14 @@ add_gnutls_ciphersuites()
                     +PSK:+AES-256-GCM:+AEAD                     \
                     +DHE-PSK:+AES-128-GCM:+AEAD                 \
                     +DHE-PSK:+AES-256-GCM:+AEAD                 \
+                    +PSK:+AES-128-CCM:+AEAD                     \
+                    +PSK:+AES-256-CCM:+AEAD                     \
+                    +DHE-PSK:+AES-128-CCM:+AEAD                 \
+                    +DHE-PSK:+AES-256-CCM:+AEAD                 \
+                    +PSK:+AES-128-CCM-8:+AEAD                   \
+                    +PSK:+AES-256-CCM-8:+AEAD                   \
+                    +DHE-PSK:+AES-128-CCM-8:+AEAD               \
+                    +DHE-PSK:+AES-256-CCM-8:+AEAD               \
                     +RSA-PSK:+CAMELLIA-128-GCM:+AEAD            \
                     +RSA-PSK:+CAMELLIA-256-GCM:+AEAD            \
                     +PSK:+CAMELLIA-128-GCM:+AEAD                \
@@ -707,6 +784,9 @@ add_gnutls_ciphersuites()
     esac
 }
 
+# Ciphersuites usable only with Mbed TLS (not currently supported by another
+# peer usable in this script). This provide only very rudimentaty testing, as
+# this is not interop testing, but it's better than nothing.
 add_mbedtls_ciphersuites()
 {
     case $TYPE in
@@ -724,26 +804,26 @@ add_mbedtls_ciphersuites()
                 M_CIPHERS="$M_CIPHERS                               \
                     TLS-ECDH-ECDSA-WITH-CAMELLIA-128-GCM-SHA256     \
                     TLS-ECDH-ECDSA-WITH-CAMELLIA-256-GCM-SHA384     \
-                    TLS-ECDHE-ECDSA-WITH-AES-128-CCM                \
-                    TLS-ECDHE-ECDSA-WITH-AES-256-CCM                \
-                    TLS-ECDHE-ECDSA-WITH-AES-128-CCM-8              \
-                    TLS-ECDHE-ECDSA-WITH-AES-256-CCM-8              \
+                    TLS-ECDHE-ECDSA-WITH-ARIA-256-CBC-SHA384        \
+                    TLS-ECDHE-ECDSA-WITH-ARIA-128-CBC-SHA256        \
+                    TLS-ECDH-ECDSA-WITH-ARIA-256-GCM-SHA384         \
+                    TLS-ECDH-ECDSA-WITH-ARIA-128-GCM-SHA256         \
+                    TLS-ECDH-ECDSA-WITH-ARIA-256-CBC-SHA384         \
+                    TLS-ECDH-ECDSA-WITH-ARIA-128-CBC-SHA256         \
                     "
             fi
             ;;
 
         "RSA")
-            if [ "$MODE" = "tls1_2" ];
+            if [ `minor_ver "$MODE"` -ge 3 ]
             then
                 M_CIPHERS="$M_CIPHERS                               \
-                    TLS-RSA-WITH-AES-128-CCM                        \
-                    TLS-RSA-WITH-AES-256-CCM                        \
-                    TLS-DHE-RSA-WITH-AES-128-CCM                    \
-                    TLS-DHE-RSA-WITH-AES-256-CCM                    \
-                    TLS-RSA-WITH-AES-128-CCM-8                      \
-                    TLS-RSA-WITH-AES-256-CCM-8                      \
-                    TLS-DHE-RSA-WITH-AES-128-CCM-8                  \
-                    TLS-DHE-RSA-WITH-AES-256-CCM-8                  \
+                    TLS-ECDHE-RSA-WITH-ARIA-256-CBC-SHA384          \
+                    TLS-DHE-RSA-WITH-ARIA-256-CBC-SHA384            \
+                    TLS-ECDHE-RSA-WITH-ARIA-128-CBC-SHA256          \
+                    TLS-DHE-RSA-WITH-ARIA-128-CBC-SHA256            \
+                    TLS-RSA-WITH-ARIA-256-CBC-SHA384                \
+                    TLS-RSA-WITH-ARIA-128-CBC-SHA256                \
                     "
             fi
             ;;
@@ -761,17 +841,20 @@ add_mbedtls_ciphersuites()
                     TLS-RSA-PSK-WITH-NULL-SHA            \
                     "
             fi
-            if [ "$MODE" = "tls1_2" ];
+            if [ `minor_ver "$MODE"` -ge 3 ]
             then
                 M_CIPHERS="$M_CIPHERS                               \
-                    TLS-PSK-WITH-AES-128-CCM                        \
-                    TLS-PSK-WITH-AES-256-CCM                        \
-                    TLS-DHE-PSK-WITH-AES-128-CCM                    \
-                    TLS-DHE-PSK-WITH-AES-256-CCM                    \
-                    TLS-PSK-WITH-AES-128-CCM-8                      \
-                    TLS-PSK-WITH-AES-256-CCM-8                      \
-                    TLS-DHE-PSK-WITH-AES-128-CCM-8                  \
-                    TLS-DHE-PSK-WITH-AES-256-CCM-8                  \
+                    TLS-RSA-PSK-WITH-ARIA-256-CBC-SHA384            \
+                    TLS-RSA-PSK-WITH-ARIA-128-CBC-SHA256            \
+                    TLS-PSK-WITH-ARIA-256-CBC-SHA384                \
+                    TLS-PSK-WITH-ARIA-128-CBC-SHA256                \
+                    TLS-RSA-PSK-WITH-ARIA-256-GCM-SHA384            \
+                    TLS-RSA-PSK-WITH-ARIA-128-GCM-SHA256            \
+                    TLS-ECDHE-PSK-WITH-ARIA-256-CBC-SHA384          \
+                    TLS-ECDHE-PSK-WITH-ARIA-128-CBC-SHA256          \
+                    TLS-DHE-PSK-WITH-ARIA-256-CBC-SHA384            \
+                    TLS-DHE-PSK-WITH-ARIA-128-CBC-SHA256            \
+                    TLS-RSA-PSK-WITH-CHACHA20-POLY1305-SHA256       \
                     "
             fi
             ;;
@@ -780,25 +863,32 @@ add_mbedtls_ciphersuites()
 
 setup_arguments()
 {
+    O_MODE=""
     G_MODE=""
     case "$MODE" in
         "ssl3")
+            O_MODE="ssl3"
             G_PRIO_MODE="+VERS-SSL3.0"
             ;;
         "tls1")
+            O_MODE="tls1"
             G_PRIO_MODE="+VERS-TLS1.0"
             ;;
         "tls1_1")
+            O_MODE="tls1_1"
             G_PRIO_MODE="+VERS-TLS1.1"
             ;;
-        "tls1_2")
+        "tls12")
+            O_MODE="tls1_2"
             G_PRIO_MODE="+VERS-TLS1.2"
             ;;
         "dtls1")
+            O_MODE="dtls1"
             G_PRIO_MODE="+VERS-DTLS1.0"
             G_MODE="-u"
             ;;
-        "dtls1_2")
+        "dtls12")
+            O_MODE="dtls1_2"
             G_PRIO_MODE="+VERS-DTLS1.2"
             G_MODE="-u"
             ;;
@@ -807,10 +897,30 @@ setup_arguments()
             exit 1;
     esac
 
+    # GnuTLS < 3.4 will choke if we try to allow CCM-8
+    if [ -z "${GNUTLS_MINOR_LT_FOUR-}" ]; then
+        G_PRIO_CCM="+AES-256-CCM-8:+AES-128-CCM-8:"
+    else
+        G_PRIO_CCM=""
+    fi
+
     M_SERVER_ARGS="server_port=$PORT server_addr=0.0.0.0 force_version=$MODE arc4=1"
-    O_SERVER_ARGS="-accept $PORT -cipher NULL,ALL -$MODE -dhparam data_files/dhparams.pem"
+    O_SERVER_ARGS="-accept $PORT -cipher NULL,ALL -$O_MODE"
     G_SERVER_ARGS="-p $PORT --http $G_MODE"
-    G_SERVER_PRIO="NORMAL:+ARCFOUR-128:+NULL:+MD5:+PSK:+DHE-PSK:+ECDHE-PSK:+SHA256:+SHA384:+RSA-PSK:-VERS-TLS-ALL:$G_PRIO_MODE"
+    G_SERVER_PRIO="NORMAL:${G_PRIO_CCM}+ARCFOUR-128:+NULL:+MD5:+PSK:+DHE-PSK:+ECDHE-PSK:+SHA256:+SHA384:+RSA-PSK:-VERS-TLS-ALL:$G_PRIO_MODE"
+
+    # The default prime for `openssl s_server` depends on the version:
+    # * OpenSSL <= 1.0.2a: 512-bit
+    # * OpenSSL 1.0.2b to 1.1.1b: 1024-bit
+    # * OpenSSL >= 1.1.1c: 2048-bit
+    # Mbed TLS wants >=1024, so force that for older versions. Don't force
+    # it for newer versions, which reject a 1024-bit prime. Indifferently
+    # force it or not for intermediate versions.
+    case $($OPENSSL_CMD version) in
+        "OpenSSL 1.0"*)
+            O_SERVER_ARGS="$O_SERVER_ARGS -dhparam data_files/dhparams.pem"
+            ;;
+    esac
 
     # with OpenSSL 1.0.1h, -www, -WWW and -HTTP break DTLS handshakes
     if is_dtls "$MODE"; then
@@ -820,9 +930,23 @@ setup_arguments()
     fi
 
     M_CLIENT_ARGS="server_port=$PORT server_addr=127.0.0.1 force_version=$MODE"
-    O_CLIENT_ARGS="-connect localhost:$PORT -$MODE"
+    O_CLIENT_ARGS="-connect localhost:$PORT -$O_MODE"
     G_CLIENT_ARGS="-p $PORT --debug 3 $G_MODE"
     G_CLIENT_PRIO="NONE:$G_PRIO_MODE:+COMP-NULL:+CURVE-ALL:+SIGN-ALL"
+
+    # Newer versions of OpenSSL have a syntax to enable all "ciphers", even
+    # low-security ones. This covers not just cipher suites but also protocol
+    # versions. It is necessary, for example, to use (D)TLS 1.0/1.1 on
+    # OpenSSL 1.1.1f from Ubuntu 20.04. The syntax was only introduced in
+    # OpenSSL 1.1.0 (21e0c1d23afff48601eb93135defddae51f7e2e3) and I can't find
+    # a way to discover it from -help, so check the openssl version.
+    case $($OPENSSL_CMD version) in
+        "OpenSSL 0"*|"OpenSSL 1.0"*) :;;
+        *)
+            O_CLIENT_ARGS="$O_CLIENT_ARGS -cipher ALL@SECLEVEL=0"
+            O_SERVER_ARGS="$O_SERVER_ARGS -cipher ALL@SECLEVEL=0"
+            ;;
+    esac
 
     if [ "X$VERIFY" = "XYES" ];
     then
@@ -1216,6 +1340,15 @@ for VERIFY in $VERIFIES; do
                 [Oo]pen*)
 
                     if test "$OSSL_NO_DTLS" -gt 0 && is_dtls "$MODE"; then
+                        continue;
+                    fi
+
+                    # OpenSSL <1.0.2 doesn't support DTLS 1.2. Check if OpenSSL
+                    # supports $O_MODE from the s_server help. (The s_client
+                    # help isn't accurate as of 1.0.2g: it supports DTLS 1.2
+                    # but doesn't list it. But the s_server help seems to be
+                    # accurate.)
+                    if ! $OPENSSL_CMD s_server -help 2>&1 | grep -q "^ *-$O_MODE "; then
                         continue;
                     fi
 
