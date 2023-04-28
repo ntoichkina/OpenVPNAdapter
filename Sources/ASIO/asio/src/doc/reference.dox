@@ -83,6 +83,7 @@ INPUT                  = ./../../include/asio.hpp \
                          ./../../include/asio/windows \
                          ./../../include/asio/execution \
                          ./../../include/asio/experimental \
+                         ./model_dox.txt \
                          ./noncopyable_dox.txt \
                          ./std_exception_dox.txt
 FILE_PATTERNS          = 
@@ -210,6 +211,8 @@ PREDEFINED             = GENERATING_DOCUMENTATION \
                          ASIO_COMPLETION_SIGNATURES_TARGS=Signatures... \
                          ASIO_INITFN_RESULT_TYPE(t,a)=void_or_deduced \
                          ASIO_INITFN_AUTO_RESULT_TYPE(t,a)=void_or_deduced \
+                         ASIO_INITFN_AUTO_RESULT_TYPE_PREFIX(t,a)=void_or_deduced \
+                         ASIO_INITFN_AUTO_RESULT_TYPE_SUFFIX(e)= \
                          ASIO_DEFAULT_COMPLETION_TOKEN_TYPE(e)==default_token \
                          ASIO_DEFAULT_COMPLETION_TOKEN(e)==default_token \
                          ASIO_SVC_TPARAM= \
@@ -228,6 +231,7 @@ PREDEFINED             = GENERATING_DOCUMENTATION \
                          ASIO_STRING_VIEW_PARAM=string_view \
                          ASIO_UNUSED_VARIABLE= \
                          ASIO_UNSPECIFIED(e)=unspecified \
+                         ASIO_EXECUTION_EXECUTOR=typename \
                          ASIO_EXECUTION_RECEIVER_ERROR_DEFAULT==std::exception_ptr \
                          ASIO_EXECUTION_RECEIVER_OF_0=typename \
                          ASIO_NOEXCEPT_IF(c)=
