@@ -63,5 +63,5 @@ let package = Package(
             ]
         )
     ],
-    cxxLanguageStandard: .gnucxx14
+    cxxLanguageStandard: .gnucxx17
 )
