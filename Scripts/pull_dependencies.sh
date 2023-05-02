@@ -3,6 +3,7 @@
 set -e
 
 OPENVPN3_VERSION="master"
+# currently using openvpn3 commit hash a8729663
 
 git subtree pull --prefix Sources/OpenVPN3 git@github.com:OpenVPN/openvpn3.git ${OPENVPN3_VERSION} --squash -m "update OpenVPN3"
 
