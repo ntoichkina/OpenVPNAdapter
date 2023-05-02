@@ -58,9 +58,10 @@ let package = Package(
                 .define("ASIO_HAS_STD_STRING_VIEW"),
                 .define("USE_MBEDTLS"),
                 .define("HAVE_LZ4"),
-                .define("OPENVPN_FORCE_TUN_NULL", .when(platforms: [ .iOS ])),
-                .define("USE_TUN_BUILDER", .when(platforms: [ .iOS ])),
-                .define("OPENVPN_COMMAND_AGENT", .when(platforms: [ .macOS ]))
+                .define("OPENVPN_FORCE_TUN_NULL"),
+                .define("USE_TUN_BUILDER"),
+                .define("OPENVPN_DEBUG_VERBOSE_ERRORS"),
+                .define("OPENVPN_DEBUG_CLIPROTO")
             ]
         )
     ],
