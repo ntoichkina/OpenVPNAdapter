@@ -1,4 +1,4 @@
-// swift-tools-version:5.1
+// swift-tools-version:5.4
 
 import PackageDescription
 
@@ -63,5 +63,5 @@ let package = Package(
             ]
         )
     ],
-    cxxLanguageStandard: .gnucxx14
+    cxxLanguageStandard: .gnucxx17
 )

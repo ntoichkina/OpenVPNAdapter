@@ -2,13 +2,7 @@
  *  Diffie-Hellman-Merkle key exchange (prime generation)
  *
  *  Copyright The Mbed TLS Contributors
- *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
- *
- *  This file is provided under the Apache License 2.0, or the
- *  GNU General Public License v2.0 or later.
- *
- *  **********
- *  Apache License 2.0:
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -21,27 +15,6 @@
  *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
- *
- *  **********
- *
- *  **********
- *  GNU General Public License v2.0 or later:
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
- *  **********
  */
 
 #if !defined(MBEDTLS_CONFIG_FILE)
@@ -50,17 +23,7 @@
 #include MBEDTLS_CONFIG_FILE
 #endif
 
-#if defined(MBEDTLS_PLATFORM_C)
 #include "mbedtls/platform.h"
-#else
-#include <stdio.h>
-#include <stdlib.h>
-#define mbedtls_printf          printf
-#define mbedtls_time_t          time_t
-#define mbedtls_exit            exit
-#define MBEDTLS_EXIT_SUCCESS    EXIT_SUCCESS
-#define MBEDTLS_EXIT_FAILURE    EXIT_FAILURE
-#endif /* MBEDTLS_PLATFORM_C */
 
 #if !defined(MBEDTLS_BIGNUM_C) || !defined(MBEDTLS_ENTROPY_C) ||   \
     !defined(MBEDTLS_FS_IO) || !defined(MBEDTLS_CTR_DRBG_C) ||     \
@@ -83,7 +46,7 @@ int main( void )
 
 #define USAGE \
     "\n usage: dh_genprime param=<>...\n"                                   \
-    "\n acceprable parameters:\n"                                           \
+    "\n acceptable parameters:\n"                                           \
     "    bits=%%d           default: 2048\n"
 
 #define DFL_BITS    2048
@@ -93,6 +56,7 @@ int main( void )
  * so it is a generator of order Q (with P = 2*Q+1).
  */
 #define GENERATOR "4"
+
 
 int main( int argc, char **argv )
 {
@@ -182,7 +146,7 @@ int main( int argc, char **argv )
         goto exit;
     }
 
-    if( ( ret = mbedtls_mpi_is_prime( &Q, mbedtls_ctr_drbg_random, &ctr_drbg ) ) != 0 )
+    if( ( ret = mbedtls_mpi_is_prime_ext( &Q, 50, mbedtls_ctr_drbg_random, &ctr_drbg ) ) != 0 )
     {
         mbedtls_printf( " failed\n  ! mbedtls_mpi_is_prime returned %d\n\n", ret );
         goto exit;
@@ -197,8 +161,8 @@ int main( int argc, char **argv )
         goto exit;
     }
 
-    if( ( ret = mbedtls_mpi_write_file( "P = ", &P, 16, fout ) != 0 ) ||
-        ( ret = mbedtls_mpi_write_file( "G = ", &G, 16, fout ) != 0 ) )
+    if( ( ( ret = mbedtls_mpi_write_file( "P = ", &P, 16, fout ) ) != 0 ) ||
+        ( ( ret = mbedtls_mpi_write_file( "G = ", &G, 16, fout ) ) != 0 ) )
     {
         mbedtls_printf( " failed\n  ! mbedtls_mpi_write_file returned %d\n\n", ret );
         fclose( fout );

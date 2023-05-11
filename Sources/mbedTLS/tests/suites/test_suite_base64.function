@@ -1,5 +1,14 @@
 /* BEGIN_HEADER */
 #include "mbedtls/base64.h"
+#include "constant_time_internal.h"
+#include "constant_time_invasive.h"
+#include <test/constant_flow.h>
+
+#if defined(MBEDTLS_TEST_HOOKS)
+static const char base64_digits[] =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+#endif /* MBEDTLS_TEST_HOOKS */
+
 /* END_HEADER */
 
 /* BEGIN_DEPENDENCIES
@@ -7,9 +16,68 @@
  * END_DEPENDENCIES
  */
 
+/* BEGIN_CASE depends_on:MBEDTLS_TEST_HOOKS */
+void mask_of_range( int low_arg, int high_arg )
+{
+    unsigned char low = low_arg, high = high_arg;
+    unsigned c;
+    for( c = 0; c <= 0xff; c++ )
+    {
+        mbedtls_test_set_step( c );
+        TEST_CF_SECRET( &c, sizeof( c ) );
+        unsigned char m = mbedtls_ct_uchar_mask_of_range( low, high, c );
+        TEST_CF_PUBLIC( &c, sizeof( c ) );
+        TEST_CF_PUBLIC( &m, sizeof( m ) );
+        if( low <= c && c <= high )
+            TEST_EQUAL( m, 0xff );
+        else
+            TEST_EQUAL( m, 0 );
+    }
+}
+/* END_CASE */
+
+/* BEGIN_CASE depends_on:MBEDTLS_TEST_HOOKS */
+void enc_chars( )
+{
+    for( unsigned value = 0; value < 64; value++ )
+    {
+        mbedtls_test_set_step( value );
+        TEST_CF_SECRET( &value, sizeof( value ) );
+        unsigned char digit = mbedtls_ct_base64_enc_char( value );
+        TEST_CF_PUBLIC( &value, sizeof( value ) );
+        TEST_CF_PUBLIC( &digit, sizeof( digit ) );
+        TEST_EQUAL( digit, base64_digits[value] );
+    }
+}
+/* END_CASE */
+
+/* BEGIN_CASE depends_on:MBEDTLS_TEST_HOOKS */
+void dec_chars( )
+{
+    char *p;
+    signed char expected;
+
+    for( unsigned c = 0; c <= 0xff; c++ )
+    {
+        mbedtls_test_set_step( c );
+        /* base64_digits is 0-terminated. sizeof()-1 excludes the trailing 0. */
+        p = memchr( base64_digits, c, sizeof( base64_digits ) - 1 );
+        if( p == NULL )
+            expected = -1;
+        else
+            expected = p - base64_digits;
+        TEST_CF_SECRET( &c, sizeof( c ) );
+        signed char actual = mbedtls_ct_base64_dec_value( c );
+        TEST_CF_PUBLIC( &c, sizeof( c ) );
+        TEST_CF_PUBLIC( &actual, sizeof( actual ) );
+        TEST_EQUAL( actual, expected );
+    }
+}
+/* END_CASE */
+
 /* BEGIN_CASE */
-void mbedtls_base64_encode( char *src_string, char *dst_string, int dst_buf_size,
-                    int result )
+void mbedtls_base64_encode( char * src_string, char * dst_string,
+                            int dst_buf_size, int result )
 {
     unsigned char src_str[1000];
     unsigned char dst_str[1000];
@@ -37,7 +105,7 @@ void mbedtls_base64_encode( char *src_string, char *dst_string, int dst_buf_size
 /* END_CASE */
 
 /* BEGIN_CASE */
-void mbedtls_base64_decode( char *src_string, char *dst_string, int result )
+void mbedtls_base64_decode( char * src_string, char * dst_string, int result )
 {
     unsigned char src_str[1000];
     unsigned char dst_str[1000];
@@ -58,18 +126,17 @@ void mbedtls_base64_decode( char *src_string, char *dst_string, int result )
 /* END_CASE */
 
 /* BEGIN_CASE */
-void base64_encode_hex( char *src_hex, char *dst, int dst_buf_size,
+void base64_encode_hex( data_t * src, char * dst, int dst_buf_size,
                         int result )
 {
-    unsigned char *src = NULL, *res = NULL;
-    size_t len, src_len;
+    unsigned char *res = NULL;
+    size_t len;
 
-    src = unhexify_alloc( src_hex, &src_len );
-    res = zero_alloc( dst_buf_size );
+    res = mbedtls_test_zero_alloc( dst_buf_size );
 
-    TEST_CF_SECRET( src, src_len );
-    TEST_ASSERT( mbedtls_base64_encode( res, dst_buf_size, &len, src, src_len ) == result );
-    TEST_CF_PUBLIC( src, src_len );
+    TEST_CF_SECRET( src->x, src->len );
+    TEST_ASSERT( mbedtls_base64_encode( res, dst_buf_size, &len, src->x, src->len ) == result );
+    TEST_CF_PUBLIC( src->x, src->len );
 
     /* res will have had tainted data copied to it, prevent the TEST_ASSERT below from triggering
        CF failures by unmarking it. */
@@ -82,45 +149,39 @@ void base64_encode_hex( char *src_hex, char *dst, int dst_buf_size,
     }
 
 exit:
-    mbedtls_free( src );
     mbedtls_free( res );
 }
 /* END_CASE */
 
 /* BEGIN_CASE */
-void base64_decode_hex( char *src, char *dst_hex, int dst_buf_size,
+void base64_decode_hex( char * src, data_t * dst, int dst_buf_size,
                         int result )
 {
-    unsigned char *dst = NULL, *res = NULL;
-    size_t len, dst_len;
+    unsigned char *res = NULL;
+    size_t len;
 
-    dst = unhexify_alloc( dst_hex, &dst_len );
-    res = zero_alloc( dst_buf_size );
+    res = mbedtls_test_zero_alloc( dst_buf_size );
 
     TEST_ASSERT( mbedtls_base64_decode( res, dst_buf_size, &len, (unsigned char *) src,
                                 strlen( src ) ) == result );
     if( result == 0 )
     {
-        TEST_ASSERT( len == dst_len );
-        TEST_ASSERT( memcmp( dst, res, len ) == 0 );
+        TEST_ASSERT( len == dst->len );
+        TEST_ASSERT( memcmp( dst->x, res, len ) == 0 );
     }
 
 exit:
-    mbedtls_free( dst );
     mbedtls_free( res );
 }
 /* END_CASE */
 
 /* BEGIN_CASE */
-void base64_decode_hex_src( char *src_hex, char *dst_ref, int result )
+void base64_decode_hex_src( data_t * src, char * dst_ref, int result )
 {
     unsigned char dst[1000] = { 0 };
-    unsigned char *src;
-    size_t src_len, len;
+    size_t len;
 
-    src = unhexify_alloc( src_hex, &src_len );
-
-    TEST_ASSERT( mbedtls_base64_decode( dst, sizeof( dst ), &len, src, src_len ) == result );
+    TEST_ASSERT( mbedtls_base64_decode( dst, sizeof( dst ), &len, src->x, src->len ) == result );
     if( result == 0 )
     {
         TEST_ASSERT( len == strlen( dst_ref ) );
@@ -128,12 +189,12 @@ void base64_decode_hex_src( char *src_hex, char *dst_ref, int result )
     }
 
 exit:
-    mbedtls_free( src );
+    ;;
 }
 /* END_CASE */
 
 /* BEGIN_CASE depends_on:MBEDTLS_SELF_TEST */
-void base64_selftest()
+void base64_selftest(  )
 {
     TEST_ASSERT( mbedtls_base64_self_test( 1 ) == 0 );
 }
