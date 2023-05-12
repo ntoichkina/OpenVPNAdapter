@@ -15,7 +15,7 @@ Manual code editing is required until better solution is found.
 - Open `Sources/OpenVPN3/openvpn/client/cliopt.hpp`
 - Find the following region:
 
-```swift
+```cpp
 #if defined(OPENVPN_PLATFORM_IPHONE)
                 tunconf->retain_sd = true;
                 tunconf->tun_prefix = true;
@@ -25,7 +25,7 @@ Manual code editing is required until better solution is found.
 
 - Replace it with:
 
-```swift
+```cpp
 #if (defined(OPENVPN_PLATFORM_IPHONE) || defined(OPENVPN_PLATFORM_MAC))
                 tunconf->retain_sd = true;
                 tunconf->tun_prefix = true;
@@ -35,7 +35,7 @@ Manual code editing is required until better solution is found.
 
 - Comment out separate region with tun setting for mac:
 
-```swift
+```cpp
 // #if defined(OPENVPN_PLATFORM_MAC)
 //                tunconf->tun_prefix = true;
 ```
