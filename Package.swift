@@ -5,7 +5,7 @@ import PackageDescription
 let package = Package(
     name: "OpenVPNAdapter",
     platforms: [
-        .iOS("9.0"),
+        .iOS("12.0"),
         .macOS("10.11"),
     ],
     products: [
