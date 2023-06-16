@@ -15,6 +15,8 @@
 #import "OpenVPNPacket.h"
 #import "OpenVPNAdapterPacketFlow.h"
 
+#define STATIC_BUFFER_SIZE 64*1024 // Buffer used for reading & writing from sockets
+
 @implementation OpenVPNPacketFlowBridge
 
 #pragma mark - Sockets Configuration
@@ -52,7 +54,7 @@ static void SocketCallback(NSData *data, OpenVPNPacketFlowBridge *obj) {
     _source = dispatch_source_create(DISPATCH_SOURCE_TYPE_READ, _packetFlowSocket, 0, DISPATCH_QUEUE_SERIAL);
     dispatch_source_set_event_handler(_source, ^{
         unsigned long bytesAvail = dispatch_source_get_data(_source);
-        static char buffer[1024*500];    // 500 KB buffer
+        static char buffer[STATIC_BUFFER_SIZE];
         unsigned long actual = read(_packetFlowSocket, buffer, sizeof(buffer));
         NSData* someData = [NSData dataWithBytes:(const void *)buffer length:sizeof(unsigned char)*actual];
         SocketCallback(someData, self);
@@ -158,7 +160,7 @@ static void SocketCallback(NSData *data, OpenVPNPacketFlowBridge *obj) {
         NSNumber *protocolFamily = protocols[idx];
         OpenVPNPacket *packet = [[OpenVPNPacket alloc] initWithPacketFlowData:data protocolFamily:protocolFamily];
 
-        char buffer[1024*500];
+        static char buffer[STATIC_BUFFER_SIZE];
         [packet.vpnData getBytes:buffer length:packet.vpnData.length];
         write(socket, buffer, packet.vpnData.length);
     }];

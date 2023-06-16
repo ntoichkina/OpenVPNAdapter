@@ -12,3 +12,6 @@ source Sources/OpenVPN3/deps/lib-versions
 git subtree pull --prefix Sources/ASIO git@github.com:chriskohlhoff/asio.git ${ASIO_VERSION} --squash -m "update ASIO"
 git subtree pull --prefix Sources/LZ4 git@github.com:lz4/lz4.git ${LZ4_VERSION/lz4-/v} --squash -m "update LZ4"
 git subtree pull --prefix Sources/mbedTLS git@github.com:ARMmbed/mbedtls.git ${MBEDTLS_VERSION} --squash -m "update mbedTLS"
+
+echo 'All dependencies updated.'
+echo 'WARNING: Manual actions required. Follow the instructions in updating-readme.md'

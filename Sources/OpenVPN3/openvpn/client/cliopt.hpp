@@ -392,7 +392,7 @@ class ClientOptions : public RC<thread_unsafe_refcount>
                 tunconf->stats = cli_stats;
                 tunconf->tun_prop.remote_list = remote_list;
                 tun_factory = tunconf;
-#if defined(OPENVPN_PLATFORM_IPHONE)
+#if (defined(OPENVPN_PLATFORM_IPHONE) || defined(OPENVPN_PLATFORM_MAC))
                 tunconf->retain_sd = true;
                 tunconf->tun_prefix = true;
                 if (config.tun_persist)
@@ -410,9 +410,9 @@ class ClientOptions : public RC<thread_unsafe_refcount>
                     tunconf->eer_factory.reset(nullptr);
                 }
 #endif
-#if defined(OPENVPN_PLATFORM_MAC)
-                tunconf->tun_prefix = true;
-#endif
+//#if defined(OPENVPN_PLATFORM_MAC)
+//                tunconf->tun_prefix = true;
+//#endif
                 if (config.tun_persist)
                     tunconf->tun_persist.reset(new TunBuilderClient::TunPersist(true, tunconf->retain_sd ? TunWrapObjRetain::RETAIN : TunWrapObjRetain::NO_RETAIN, config.builder));
                 tun_factory = tunconf;
