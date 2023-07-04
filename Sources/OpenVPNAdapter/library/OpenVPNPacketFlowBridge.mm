@@ -16,8 +16,17 @@
 #import "OpenVPNAdapterPacketFlow.h"
 
 #define STATIC_BUFFER_SIZE 64*1024 // Buffer used for reading & writing from sockets
+#define DESCRIPTOR_INVALID -1
 
 @implementation OpenVPNPacketFlowBridge
+
+- (instancetype)init {
+    if (self = [super init]) {
+        _openVPNSocket = DESCRIPTOR_INVALID;
+        _packetFlowSocket = DESCRIPTOR_INVALID;
+    }
+    return self;
+}
 
 #pragma mark - Sockets Configuration
 
@@ -59,8 +68,9 @@ static void SocketCallback(NSData *data, OpenVPNPacketFlowBridge *obj) {
         NSData* someData = [NSData dataWithBytes:(const void *)buffer length:sizeof(unsigned char)*actual];
         SocketCallback(someData, self);
     });
+    
     dispatch_source_set_cancel_handler(_source, ^{
-        close(_packetFlowSocket);
+        [OpenVPNPacketFlowBridge closeSocketIfNeeded:&_packetFlowSocket];
     });
     
     if (!(flags != 0 && success && _source)) {
@@ -128,15 +138,13 @@ static void SocketCallback(NSData *data, OpenVPNPacketFlowBridge *obj) {
 }
 
 - (void)invalidateSocketsIfNeeded {
-    if (_openVPNSocket) {
-        close(_openVPNSocket);
-        _openVPNSocket = NULL;
-    }
+    [OpenVPNPacketFlowBridge closeSocketIfNeeded:&_openVPNSocket];
     
-    if (_packetFlowSocket) {
+    if (_source != NULL) {
         dispatch_source_cancel(_source);
-        _packetFlowSocket = NULL;
         _source = NULL;
+    } else {
+        [OpenVPNPacketFlowBridge closeSocketIfNeeded:&_packetFlowSocket];
     }
 }
 
@@ -186,6 +194,15 @@ static void SocketCallback(NSData *data, OpenVPNPacketFlowBridge *obj) {
 
 - (void)dealloc {
     [self invalidateSocketsIfNeeded];
+}
+
++ (BOOL)closeSocketIfNeeded:(int *)descriptor {
+    if (*descriptor == DESCRIPTOR_INVALID) {
+        return;
+    }
+    
+    close(*descriptor);
+    *descriptor = DESCRIPTOR_INVALID;
 }
 
 @end
